@@ -220,6 +220,7 @@
 //! management, error handling, and more.
 #[doc(inline)]
 pub use self::client::Client;
+pub use self::client::Pull;
 
 mod client;
 mod define_value_map;

@@ -6,6 +6,30 @@ use futures_util::io::{AsyncRead, AsyncWrite};
 use crate::error::*;
 use crate::{Client, Metadata, Params};
 
+pub struct Pull<S: AsyncRead + AsyncWrite + Unpin> {
+    client: Client<S>,
+    final_message: Option<Message>,
+}
+
+impl<S: AsyncRead + AsyncWrite + Unpin> Pull<S> {
+    pub async fn next(&mut self) -> Result<Option<Record>> {
+        match self.client.read_message().await? {
+            Message::Record(record) => Ok(Some(record)),
+            other => {
+                self.final_message = Some(other);
+                Ok(None)
+            }
+        }
+    }
+
+    pub async fn exhaust(mut self) -> Result<(Message, Client<S>)> {
+        if self.final_message.is_none() {
+            while let Some(x) = self.next().await? {}
+        }
+        Ok((self.final_message.unwrap(), self.client))
+    }
+}
+
 impl<S: AsyncRead + AsyncWrite + Unpin> Client<S> {
     /// Send an `INIT` message to the server.
     ///
@@ -134,6 +158,15 @@ impl<S: AsyncRead + AsyncWrite + Unpin> Client<S> {
                 other => return Ok((other, records)),
             }
         }
+    }
+
+    #[bolt_version(1, 2, 3)]
+    pub async fn pull_all_2(mut self) -> Result<Pull<S>> {
+        self.send_message(Message::PullAll).await?;
+        Ok(Pull {
+            client: self,
+            final_message: None,
+        })
     }
 
     /// Send an `ACK_FAILURE` message to the server.

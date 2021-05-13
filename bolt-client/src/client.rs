@@ -22,6 +22,8 @@ mod v3;
 mod v4;
 mod v4_1;
 
+pub use v1::Pull;
+
 const PREAMBLE: [u8; 4] = [0x60, 0x60, 0xB0, 0x17];
 
 /// An asynchronous client for Bolt servers.
